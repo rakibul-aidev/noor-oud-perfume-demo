@@ -71,13 +71,13 @@
 
   /* ---------- HERO ---------- */
   .hero{
-    position:relative; height:100vh; display:flex; flex-direction:column;
+    position:relative; min-height:100vh; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center;
     background:
       radial-gradient(ellipse at 50% 20%, rgba(212,175,106,0.12), transparent 60%),
       radial-gradient(ellipse at 50% 100%, rgba(46,90,65,0.35), transparent 60%),
       var(--bg);
-    padding:0 20px;
+    padding:110px 20px 60px;
   }
   .hero-eyebrow{
     font-family:var(--font-body); font-weight:500;
@@ -111,12 +111,24 @@
   }
   .btn-ghost:hover{border-color:var(--gold-soft); color:var(--gold-soft);}
   .scroll-cue{
-    position:absolute; bottom:36px; left:50%; transform:translateX(-50%);
+    position:relative; margin-top:48px;
     font-size:11px; letter-spacing:2px; color:var(--text-dim); text-transform:uppercase;
     display:flex; flex-direction:column; align-items:center; gap:10px; opacity:0;
   }
   .scroll-line{width:1px; height:36px; background:linear-gradient(var(--gold), transparent); animation:pulse 2s infinite;}
   @keyframes pulse{0%,100%{opacity:.3} 50%{opacity:1}}
+
+  @media (max-height:700px){
+    .hero{padding-top:90px; padding-bottom:36px;}
+    .hero-eyebrow{margin-bottom:16px;}
+    .hero-sub{margin-top:18px;}
+    .hero-ctas{margin-top:24px;}
+    .scroll-cue{margin-top:24px;}
+  }
+  @media (max-width:480px){
+    .hero-ctas{flex-direction:column; width:100%; max-width:320px;}
+    .btn-primary, .btn-ghost{width:100%; text-align:center;}
+  }
 
   /* ---------- SCROLL-SCRUBBED POUR ---------- */
   .pour-section{height:250vh; position:relative;}
