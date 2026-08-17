@@ -122,19 +122,24 @@
   .pour-section{height:250vh; position:relative;}
   .pour-stage{
     position:sticky; top:0; height:100vh; overflow:hidden;
-    display:flex; align-items:center; justify-content:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding:min(12vh, 100px) 20px 24px;
     background:radial-gradient(ellipse at 50% 30%, rgba(212,175,106,0.08), transparent 65%), var(--bg);
   }
   .pour-caption{
-    position:absolute; top:7%; left:50%; transform:translateX(-50%);
-    text-align:center; opacity:0; width:100%; padding:0 20px;
+    position:relative; flex:0 0 auto;
+    text-align:center; opacity:0; width:100%; max-width:520px; margin:0 auto;
   }
   .pour-caption .section-label{justify-content:center;}
   .pour-caption .section-title{
     max-width:480px; margin:0 auto;
-    font-size:clamp(24px,3vw,38px);
+    font-size:clamp(20px,3vw,38px);
   }
-  .pour-rig{position:relative; width:min(88vw, 400px); height:min(72vh, 620px);}
+  .pour-rig-wrap{
+    flex:1 1 auto; min-height:0; width:100%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pour-rig{position:relative; width:min(80vw, 400px); height:min(100%, 560px); max-width:100%;}
   .pour-stream{
     position:absolute; top:0; left:50%; width:8px; height:52%;
     transform:translateX(-50%) scaleY(0); transform-origin:top center;
@@ -170,9 +175,22 @@
     background:linear-gradient(to top, var(--gold-deep), var(--gold) 70%, var(--gold-soft));
   }
   .pour-hint{
-    position:absolute; bottom:3%; left:50%; transform:translateX(-50%);
+    position:relative; flex:0 0 auto; margin-top:12px;
     font-family:var(--font-body);
     font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); opacity:.7;
+    text-align:center;
+  }
+
+  @media (max-width:480px){
+    .pour-cap{width:36px; height:18px;}
+    .pour-neck{width:19px; height:27px;}
+    .pour-body{width:148px; height:176px;}
+    .pour-stream{width:6px;}
+    .pour-drop{width:10px; height:10px;}
+  }
+  @media (max-height:700px){
+    .pour-stage{padding-top:50px;}
+    .pour-rig{height:min(100%, 440px);}
   }
 
   /* ---------- SECTION SHELL ---------- */
@@ -330,15 +348,17 @@
       <div class="section-label">Poured, Not Mixed</div>
       <h2 class="section-title">One drop at a time. No shortcuts.</h2>
     </div>
-    <div class="pour-rig">
-      <div class="pour-stream"></div>
-      <div class="pour-drop d1"></div>
-      <div class="pour-drop d2"></div>
-      <div class="pour-drop d3"></div>
-      <div class="pour-bottle">
-        <div class="pour-cap"></div>
-        <div class="pour-neck"></div>
-        <div class="pour-body"><div class="pour-fill"></div></div>
+    <div class="pour-rig-wrap">
+      <div class="pour-rig">
+        <div class="pour-stream"></div>
+        <div class="pour-drop d1"></div>
+        <div class="pour-drop d2"></div>
+        <div class="pour-drop d3"></div>
+        <div class="pour-bottle">
+          <div class="pour-cap"></div>
+          <div class="pour-neck"></div>
+          <div class="pour-body"><div class="pour-fill"></div></div>
+        </div>
       </div>
     </div>
     <div class="pour-hint">Scroll to pour</div>
