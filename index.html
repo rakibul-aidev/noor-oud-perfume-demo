@@ -148,7 +148,9 @@
   .pour-stage.video-ready .pour-poster{opacity:0;}
   .pour-scrim{
     position:absolute; inset:0; pointer-events:none; z-index:1;
-    background:radial-gradient(ellipse 120% 90% at 50% 58%, rgba(11,15,12,0) 28%, rgba(11,15,12,.72) 100%);
+    background:
+      linear-gradient(to bottom, rgba(11,15,12,.8) 0%, rgba(11,15,12,.52) 20%, rgba(11,15,12,0) 42%),
+      radial-gradient(ellipse 120% 90% at 50% 58%, rgba(11,15,12,0) 28%, rgba(11,15,12,.72) 100%);
   }
   .pour-loader{
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
@@ -188,7 +190,7 @@
   }
 
   /* ---------- SECTION SHELL ---------- */
-  section{padding:140px 6%; position:relative;}
+  section{padding:140px 6%; position:relative; scroll-margin-top:100px;}
   .section-label{
     font-family:var(--font-body); font-weight:600;
     font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--gold);
@@ -291,6 +293,8 @@
   .cta{
     text-align:center; background:
       radial-gradient(ellipse at 50% 0%, rgba(212,175,106,0.15), transparent 60%), var(--bg);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    box-sizing:border-box;
   }
   .cta h2{font-family:var(--font-display); font-style:normal; font-size:clamp(36px,5.5vw,66px); font-weight:400; max-width:700px; margin:0 auto; line-height:1.15; color:var(--text);}
   .cta p{color:var(--text-dim); margin:22px auto 34px; max-width:460px; font-size:16px; font-weight:300;}
