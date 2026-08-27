@@ -453,7 +453,7 @@
   <div class="hero-stage">
     <div class="hero-media" aria-hidden="true">
       <div class="hero-poster" style="background-image:url('assets/hero-poster.jpg')"></div>
-      <video id="heroVideo" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
+      <video id="heroVideo" muted playsinline webkit-playsinline="true" preload="none" aria-hidden="true" tabindex="-1"></video>
       <div class="hero-scrim-base"></div>
       <div class="hero-scrim-bottom"></div>
     </div>
@@ -637,14 +637,34 @@
   }
 
   // ---- gated, deadlock-safe seeks ----
-  var seekBusy = false, pendingTime = null;
+  // A plain seekBusy/pendingTime gate deadlocks forever the moment a
+  // 'seeked' event is dropped -- and some mobile browsers (iOS Safari in
+  // particular) can silently drop it, especially around the video's
+  // 'ended' state or for a video that's never had .play() called on it.
+  // That reads exactly as "played once scrolling down, froze and never
+  // moved again scrolling up." A watchdog timer is the fix: if 'seeked'
+  // doesn't arrive within a beat, force the gate open and retry with
+  // whatever the current target is, so a single dropped event can never
+  // wedge the whole hero.
+  var seekBusy = false, pendingTime = null, seekWatchdog = null;
+  function clearSeekWatchdog(){
+    if (seekWatchdog !== null) { clearTimeout(seekWatchdog); seekWatchdog = null; }
+  }
   function requestSeek(t){
     if (!video.duration || !isFinite(video.duration)) return;
     if (seekBusy) { pendingTime = t; return; }
     seekBusy = true;
-    try { video.currentTime = t; } catch(e){ seekBusy = false; }
+    clearSeekWatchdog();
+    seekWatchdog = setTimeout(function(){
+      seekWatchdog = null;
+      seekBusy = false;
+      requestSeek(pendingTime !== null ? pendingTime : t);
+      pendingTime = null;
+    }, 350);
+    try { video.currentTime = t; } catch(e){ clearSeekWatchdog(); seekBusy = false; }
   }
   video.addEventListener('seeked', function(){
+    clearSeekWatchdog();
     seekBusy = false;
     if (pendingTime !== null) {
       var t = pendingTime; pendingTime = null;
@@ -652,6 +672,7 @@
     }
   });
   video.addEventListener('error', function(){
+    clearSeekWatchdog();
     seekBusy = false; pendingTime = null;
     failVideo();
   });
@@ -680,8 +701,26 @@
       video.src = URL.createObjectURL(blob);
       video.load();
       video.addEventListener('canplay', function(){
-        video.classList.add('ready');
-        requestSeek(heroProgress() * (video.duration || 0));
+        function reveal(){
+          video.classList.add('ready');
+          requestSeek(heroProgress() * (video.duration || 0));
+        }
+        // Prime the decoder BEFORE revealing the video: some mobile
+        // browsers (iOS Safari especially) never reliably paint a
+        // currentTime-driven seek on a video that has not itself been
+        // played at least once. muted+playsinline permits this without a
+        // user gesture, and doing it while the video is still opacity:0
+        // (not yet .ready) means no frame-0 flash is possible even if
+        // play()/pause() takes a beat to resolve on a slower device.
+        try {
+          var primed = video.play();
+          if (primed && typeof primed.then === 'function') {
+            primed.then(function(){ video.pause(); reveal(); }).catch(function(){ reveal(); });
+          } else {
+            video.pause();
+            reveal();
+          }
+        } catch(e){ reveal(); }
       }, { once:true });
     }).catch(failVideo);
   }
