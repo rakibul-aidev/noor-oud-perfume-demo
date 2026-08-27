@@ -217,10 +217,12 @@
   @keyframes pulse{0%,100%{opacity:.3} 50%{opacity:1}}
   body.paused .scroll-line{animation-play-state:paused!important;}
 
-  /* ---- Band 2: the settle beat -- "Poured, not mixed," centered, drift-down ---- */
+  /* ---- Band 2: the settle beat -- "Poured, not mixed," same left-aligned
+     slot as band 1's headline (not centered) so the crossfade reads as
+     one line of copy replacing another in place, not a layout jump. ---- */
   .band-2{
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:0 6%; opacity:0;
+    display:flex; align-items:center; justify-content:flex-start;
+    padding:0 6%; opacity:0;
   }
   .band-2-eyebrow{
     --th:0;
@@ -478,7 +480,7 @@
 
     <div class="band band-2" id="band2">
       <span class="visually-hidden">Poured, not mixed. One drop at a time. No shortcuts.</span>
-      <div aria-hidden="true">
+      <div class="hero-content" aria-hidden="true">
         <p class="band-2-eyebrow">Our Craft</p>
         <h2 class="band-2-head">
           <span class="w" style="--th:0.02">Poured,</span>
@@ -621,26 +623,27 @@
   };
   var kcFn = function(k, th, spread){ return clamp((k - th) * spread, 0, 1); };
 
-  // ---- autoplay-then-scroll video mode (every device, same rules) ----
-  // The video plays itself the moment it's ready -- no click, no scroll
-  // needed -- but it's capped to a short opening stretch (see
-  // AUTOPLAY_CAP_FRACTION) rather than running the whole clip on its own:
-  // letting it race ahead unbounded is what made it (a) read as the page
-  // auto-scrolling and (b) force a big visible rewind/"skip" the moment
-  // scroll took over far from wherever autoplay had wandered to. The
-  // instant the visitor scrolls at all -- any device, any direction --
-  // control hands to scroll and stays there for the rest of the visit:
+  // ---- three-state hero video: autoplay <-> scroll-controlled ----
+  // Resting state: the video loops on its own, no click or scroll needed.
+  // The instant the visitor scrolls at all, control hands to scroll --
   // down plays forward, up plays backward, exactly matching scroll
-  // position, same as bands/scrims always have (see updateBands/tick).
-  var AUTOPLAY_CAP_FRACTION = 0.15;
+  // position (same as bands/scrims always have, see updateBands/tick).
+  // Unlike earlier rounds this handoff is now reversible: once scrolling
+  // stops AND the visitor has scrolled back to the top of the hero, it
+  // resumes autoplaying on its own again, right where it left off.
+  var SCROLL_IDLE_MS = 500;     // how long scrolling has to stop before we reconsider autoplay
+  var AT_TOP_THRESHOLD = 0.02;  // how close to the very top counts as "back at the top"
   var videoAutoMode = true;   // true while the video plays itself; false once scroll owns it
 
   // ---- band pacing (starting points, per the flick test) ----
   // Band 1 [0, 0.40]: the opening beat, no ease-in (first band).
-  // Gap [0.40, 0.48]: deliberate text-free breathing room.
-  // Band 2 [0.48, 0.92]: the settle beat, no ease-out (last band).
-  var B1_B = 0.40, B1_F = 0.02;
-  var B2_A = 0.48, B2_F = 0.02, B2_B = 0.92, B2_RAMP = 0.04;
+  // Crossfade [0.30, 0.40]: band 1 fades out while band 2 fades in over
+  // the SAME window, in the SAME on-screen slot (see .band-2's CSS) --
+  // one headline dissolving into the next, no text-free gap, video keeps
+  // playing underneath the whole time either way.
+  // Band 2 [0.30, 0.92]: the settle beat, no ease-out (last band).
+  var B1_B = 0.40, B1_F = 0.10;
+  var B2_A = 0.30, B2_F = 0.10, B2_B = 0.92, B2_RAMP = 0.14;
   var B1_RAMP = 0.025;
   var LOAD_MS = 1400;
   var loadStart = Date.now();
@@ -696,18 +699,6 @@
     video.classList.add('failed'); // poster remains; bands keep working over it
   }
 
-  // ---- bound the self-playing intro so it can never wander far from
-  // where an actual scroll would put it -- holds at AUTOPLAY_CAP_FRACTION
-  // and waits there for scroll to take over. ----
-  function capAutoplay(){
-    if (!videoAutoMode) { video.removeEventListener('timeupdate', capAutoplay); return; }
-    var cap = AUTOPLAY_CAP_FRACTION * (video.duration || 0);
-    if (cap > 0 && video.currentTime >= cap) {
-      try { video.pause(); } catch(e){}
-      video.removeEventListener('timeupdate', capAutoplay);
-    }
-  }
-
   // ---- blob fetch (clip is ~2.2MB / 788KB webm, well under the 8MB
   // threshold where the streamed-Blob-with-ring pattern is required) ----
   var heroInited = false;
@@ -734,12 +725,11 @@
         // visitor who already scrolled while the video was still loading
         // should land straight in scroll mode, not autoplay from zero and
         // then immediately hand off.
-        video.loop = false;
         var alreadyScrolled = heroProgress() > 0.01;
         videoAutoMode = !alreadyScrolled;
+        video.loop = videoAutoMode;
         if (videoAutoMode) {
           video.classList.add('ready');
-          video.addEventListener('timeupdate', capAutoplay);
           try {
             var playing = video.play();
             if (playing && typeof playing.then === 'function') playing.catch(function(){});
@@ -795,25 +785,51 @@
     if (settled) shown = target;
     var lk = loadK();
     updateBands(shown, lk);
-    if (!videoAutoMode) requestSeek(shown * (video.duration || 0));
+    // The video itself uses the raw, unsmoothed `target` -- not the
+    // lerped `shown` bands use -- so it always matches the CURRENT scroll
+    // position exactly, with no catch-up lag. Driving it off the smoothed
+    // value meant a big/fast scroll (trackpad momentum easily covers the
+    // whole pinned section in one gesture) made the video visibly
+    // fast-forward through several seconds of footage over the lerp's
+    // ~700ms settle time -- reported as "it skipped the section in the
+    // middle." Bands keep the smoothing; the video doesn't need it, since
+    // it's expected to track 1:1 with wherever the visitor's scroll is.
+    if (!videoAutoMode) requestSeek(target * (video.duration || 0));
     if (!(settled && lk >= 1) && heroOnScreen) {
       rafId = requestAnimationFrame(tick);
     } else {
       rafId = null; lastTick = 0;
     }
   }
-  // ---- hand video control from autoplay to scroll, once, the instant
-  // any device's visitor scrolls at all. One-way: it never hands back to
-  // autoplay after this, so scroll owns the video for the rest of the visit. ----
+  // ---- hand video control from autoplay to scroll the instant any
+  // visitor scrolls, and hand it back once they stop scrolling AND have
+  // scrolled back up to the top -- a resting hero autoplays; an engaged
+  // one follows the visitor exactly. ----
   function handoffToScroll(){
     if (!videoAutoMode) return;
     videoAutoMode = false;
-    video.removeEventListener('timeupdate', capAutoplay);
+    video.loop = false;
     try { video.pause(); } catch(e){}
+  }
+  function resumeAutoplay(){
+    if (videoAutoMode) return;
+    videoAutoMode = true;
+    video.loop = true;
+    try {
+      var playing = video.play();
+      if (playing && typeof playing.then === 'function') playing.catch(function(){});
+    } catch(e){}
+  }
+  var scrollIdleTimer = null;
+  function checkResumeAutoplay(){
+    scrollIdleTimer = null;
+    if (!videoAutoMode && heroProgress() <= AT_TOP_THRESHOLD) resumeAutoplay();
   }
   function onScroll(){
     target = heroProgress();
     if (videoAutoMode) handoffToScroll();
+    if (scrollIdleTimer !== null) clearTimeout(scrollIdleTimer);
+    scrollIdleTimer = setTimeout(checkResumeAutoplay, SCROLL_IDLE_MS);
     if (rafId === null && heroOnScreen) rafId = requestAnimationFrame(tick);
   }
 
@@ -831,10 +847,11 @@
 
   // ---- the static-hero gate, live in both CSS and JS. Reduced motion
   // only -- this decides whether the hero engine (bands + video) runs at
-  // all. Once it's on, every device autoplays a short capped intro then
-  // hands the video fully to scroll on first scroll (see AUTOPLAY_CAP_
-  // FRACTION/handoffToScroll above) -- no per-device split any more.
-  // Character-identical to the CSS query. ----
+  // all. Once it's on, every device loops the video on its own at rest,
+  // hands it to scroll while scrolling, and back to looping once the
+  // visitor stops scrolling back at the top (see handoffToScroll/
+  // resumeAutoplay above) -- no per-device split. Character-identical to
+  // the CSS query. ----
   var GATES = [
     '(prefers-reduced-motion: reduce)'
   ];
@@ -851,6 +868,7 @@
     if (!scrubOn) return; scrubOn = false;
     window.removeEventListener('scroll', onScroll);
     if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+    if (scrollIdleTimer !== null) { clearTimeout(scrollIdleTimer); scrollIdleTimer = null; }
   }
   function applyHeroMode(){
     var gated = GATES.some(function(q){ return matchMedia(q).matches; });
