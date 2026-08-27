@@ -621,6 +621,20 @@
   };
   var kcFn = function(k, th, spread){ return clamp((k - th) * spread, 0, 1); };
 
+  // ---- device-based video mode ----
+  // Every device gets the video playing itself the moment it's ready --
+  // that's the "loading animation" feel Rakibul liked. Touch/coarse-
+  // pointer devices (phones, most tablets) additionally hand control of
+  // the video over to scroll the instant the visitor scrolls, so they
+  // get both behaviors, whichever they use. Desktop (pointer:fine) never
+  // hands off -- the video always just plays itself through once, while
+  // the headline/CTA bands stay scroll-driven on every device exactly as
+  // before (see updateBands/tick below, untouched by this).
+  var SMALL_SCREEN_Q = '(pointer:coarse)';
+  function isSmallScreen(){ return matchMedia(SMALL_SCREEN_Q).matches; }
+  var handoffArmed = false;   // true only for touch devices, set once the video is ready
+  var videoAutoMode = true;   // true while the video plays itself; false once scroll owns it
+
   // ---- band pacing (starting points, per the flick test) ----
   // Band 1 [0, 0.40]: the opening beat, no ease-in (first band).
   // Gap [0.40, 0.48]: deliberate text-free breathing room.
@@ -701,26 +715,30 @@
       video.src = URL.createObjectURL(blob);
       video.load();
       video.addEventListener('canplay', function(){
-        function reveal(){
+        // A genuine .play() call (below) warms the decoder on its own --
+        // no need for the old play()-then-pause() priming trick, since
+        // real playback primes iOS Safari's decoder more reliably than a
+        // synthetic touch ever could. That leaves one branch to handle:
+        // a touch visitor who already scrolled while the video was still
+        // loading should land straight in scroll mode, not autoplay from
+        // zero and then immediately hand off.
+        handoffArmed = isSmallScreen();
+        video.loop = false;
+        var alreadyScrolled = handoffArmed && heroProgress() > 0.01;
+        videoAutoMode = !alreadyScrolled;
+        if (videoAutoMode) {
           video.classList.add('ready');
+          try {
+            var playing = video.play();
+            if (playing && typeof playing.then === 'function') playing.catch(function(){});
+          } catch(e){}
+        } else {
+          video.addEventListener('seeked', function revealOnSeek(){
+            video.removeEventListener('seeked', revealOnSeek);
+            video.classList.add('ready');
+          });
           requestSeek(heroProgress() * (video.duration || 0));
         }
-        // Prime the decoder BEFORE revealing the video: some mobile
-        // browsers (iOS Safari especially) never reliably paint a
-        // currentTime-driven seek on a video that has not itself been
-        // played at least once. muted+playsinline permits this without a
-        // user gesture, and doing it while the video is still opacity:0
-        // (not yet .ready) means no frame-0 flash is possible even if
-        // play()/pause() takes a beat to resolve on a slower device.
-        try {
-          var primed = video.play();
-          if (primed && typeof primed.then === 'function') {
-            primed.then(function(){ video.pause(); reveal(); }).catch(function(){ reveal(); });
-          } else {
-            video.pause();
-            reveal();
-          }
-        } catch(e){ reveal(); }
       }, { once:true });
     }).catch(failVideo);
   }
@@ -765,15 +783,24 @@
     if (settled) shown = target;
     var lk = loadK();
     updateBands(shown, lk);
-    requestSeek(shown * (video.duration || 0));
+    if (!videoAutoMode) requestSeek(shown * (video.duration || 0));
     if (!(settled && lk >= 1) && heroOnScreen) {
       rafId = requestAnimationFrame(tick);
     } else {
       rafId = null; lastTick = 0;
     }
   }
+  // ---- hand video control from autoplay to scroll, once, on touch
+  // devices only. Desktop never calls this -- handoffArmed stays false
+  // there, so the video just keeps playing itself regardless of scroll. ----
+  function handoffToScroll(){
+    if (!videoAutoMode) return;
+    videoAutoMode = false;
+    try { video.pause(); } catch(e){}
+  }
   function onScroll(){
     target = heroProgress();
+    if (handoffArmed && videoAutoMode) handoffToScroll();
     if (rafId === null && heroOnScreen) rafId = requestAnimationFrame(tick);
   }
 
@@ -790,9 +817,10 @@
   })();
 
   // ---- the static-hero gate, live in both CSS and JS. Reduced motion
-  // only -- the mobile/tablet gates from the skill's default were
-  // deliberately dropped so the scroll-scrub plays on phones too, per
-  // Rakibul's explicit request. Character-identical to the CSS query. ----
+  // only -- this decides whether the hero engine (bands + video) runs at
+  // all. Once it's on, every device autoplays the video; SMALL_SCREEN_Q/
+  // handoffArmed above decide which devices additionally hand it to
+  // scroll. Character-identical to the CSS query. ----
   var GATES = [
     '(prefers-reduced-motion: reduce)'
   ];
