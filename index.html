@@ -27,12 +27,12 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html{scroll-behavior:smooth;}
+  html,body{overflow-x:clip}
   body{
     background:var(--bg);
     color:var(--text);
     font-family:var(--font-body);
     font-weight:400;
-    overflow-x:hidden;
     position:relative;
   }
   body::before{
@@ -130,16 +130,34 @@
     .btn-primary, .btn-ghost{width:100%; text-align:center;}
   }
 
-  /* ---------- SCROLL-SCRUBBED POUR ---------- */
+  /* ---------- SCROLL-SCRUBBED POUR (real AI-generated hero video) ---------- */
   .pour-section{height:250vh; position:relative;}
   .pour-stage{
     position:sticky; top:0; height:100vh; overflow:hidden;
-    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
     padding:min(12vh, 100px) 20px 24px;
     background:radial-gradient(ellipse at 50% 30%, rgba(212,175,106,0.08), transparent 65%), var(--bg);
   }
+  .pour-stage .media{position:absolute; inset:0; width:100%; height:100%; z-index:0;}
+  .pour-poster{position:absolute; inset:0; background-size:cover; background-position:center; opacity:1; transition:opacity .6s ease;}
+  #pourVideo{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0;
+    transition:opacity .7s ease; will-change:transform; transform:translateZ(0);
+  }
+  .pour-stage.video-ready #pourVideo{opacity:1;}
+  .pour-stage.video-ready .pour-poster{opacity:0;}
+  .pour-scrim{
+    position:absolute; inset:0; pointer-events:none; z-index:1;
+    background:radial-gradient(ellipse 120% 90% at 50% 58%, rgba(11,15,12,0) 28%, rgba(11,15,12,.72) 100%);
+  }
+  .pour-loader{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:40px; height:40px; color:var(--gold); z-index:2;
+  }
+  .pour-loader svg{width:100%; height:100%;}
+  .pour-stage.video-ready .pour-loader,.pour-stage.video-failed .pour-loader{display:none;}
   .pour-caption{
-    position:relative; flex:0 0 auto;
+    position:relative; z-index:2; flex:0 0 auto;
     text-align:center; opacity:0; width:100%; max-width:520px; margin:0 auto;
   }
   .pour-caption .section-label{justify-content:center;}
@@ -147,62 +165,26 @@
     max-width:480px; margin:0 auto;
     font-size:clamp(20px,3vw,38px);
   }
-  .pour-rig-wrap{
-    flex:1 1 auto; min-height:0; width:100%;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .pour-rig{position:relative; width:min(80vw, 400px); height:min(100%, 560px); max-width:100%;}
-  .pour-stream{
-    position:absolute; top:0; left:50%; width:8px; height:52%;
-    transform:translateX(-50%) scaleY(0); transform-origin:top center;
-    background:linear-gradient(to bottom, var(--gold-soft), var(--gold) 60%, var(--gold-deep));
-    border-radius:0 0 4px 4px; box-shadow:0 0 20px rgba(212,175,106,0.55);
-  }
-  .pour-drop{
-    position:absolute; top:0; left:50%; width:13px; height:13px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, var(--gold-soft), var(--gold) 70%);
-    transform:translate(-50%,0); opacity:0;
-  }
-  .pour-bottle{
-    position:absolute; bottom:6%; left:50%; transform:translateX(-50%);
-    display:flex; flex-direction:column; align-items:center;
-  }
-  .pour-cap{
-    width:46px; height:22px; border-radius:6px 6px 3px 3px;
-    background:linear-gradient(180deg, var(--gold-soft), var(--gold));
-  }
-  .pour-neck{
-    width:24px; height:34px; background:#0d1f14;
-    border-left:2px solid rgba(212,175,106,0.35); border-right:2px solid rgba(212,175,106,0.35);
-  }
-  .pour-body{
-    width:196px; height:232px; border-radius:50% 50% 32px 32px;
-    background:linear-gradient(160deg, #16311f, #0d1f14);
-    border:2px solid rgba(212,175,106,0.35);
-    overflow:hidden; position:relative;
-    box-shadow:0 30px 70px rgba(0,0,0,0.55);
-  }
-  .pour-fill{
-    position:absolute; bottom:0; left:0; right:0; height:0%;
-    background:linear-gradient(to top, var(--gold-deep), var(--gold) 70%, var(--gold-soft));
-  }
   .pour-hint{
-    position:relative; flex:0 0 auto; margin-top:12px;
+    position:relative; z-index:2; flex:0 0 auto; margin-top:12px;
     font-family:var(--font-body);
     font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); opacity:.7;
     text-align:center;
   }
 
-  @media (max-width:480px){
-    .pour-cap{width:36px; height:18px;}
-    .pour-neck{width:19px; height:27px;}
-    .pour-body{width:148px; height:176px;}
-    .pour-stream{width:6px;}
-    .pour-drop{width:10px; height:10px;}
+  /* static fallback (portrait tablets / coarse-pointer landscape / reduced motion) --
+     same four gates as the scrub JS below, must match exactly */
+  .static-pour{display:none;}
+  @media (orientation:portrait) and (min-width:600px) and (max-width:1024px),(orientation:portrait) and (pointer:coarse) and (min-width:600px),
+  (orientation:landscape) and (pointer:coarse) and (max-height:560px),(prefers-reduced-motion:reduce){
+    .pour-section{height:auto;}
+    .pour-stage{position:relative; height:92vh;}
+    .pour-caption,.pour-loader,.pour-hint{display:none;}
+    .static-pour{display:flex; position:absolute; inset:0; z-index:2; align-items:center; justify-content:center; text-align:center; padding:0 20px;}
   }
+
   @media (max-height:700px){
     .pour-stage{padding-top:50px;}
-    .pour-rig{height:min(100%, 440px);}
   }
 
   /* ---------- SECTION SHELL ---------- */
@@ -354,25 +336,31 @@
   <div class="scroll-cue"><span>Scroll</span><div class="scroll-line"></div></div>
 </section>
 
-<section class="pour-section" id="pour">
-  <div class="pour-stage">
-    <div class="pour-caption">
+<section class="pour-section" id="pour" aria-label="Noor and Oud, poured not mixed">
+  <div class="pour-stage" id="pourStage">
+    <div class="media">
+      <div class="pour-poster" id="pourPoster" aria-hidden="true"></div>
+      <video id="pourVideo" muted playsinline aria-hidden="true" tabindex="-1" preload="none"></video>
+      <div class="pour-scrim" aria-hidden="true"></div>
+    </div>
+
+    <div class="pour-loader" id="pourLoader" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="3"
+        stroke-dasharray="126" style="stroke-dashoffset:126"/></svg>
+    </div>
+
+    <div class="pour-caption" id="pourCaption">
       <div class="section-label">Poured, Not Mixed</div>
       <h2 class="section-title">One drop at a time. No shortcuts.</h2>
     </div>
-    <div class="pour-rig-wrap">
-      <div class="pour-rig">
-        <div class="pour-stream"></div>
-        <div class="pour-drop d1"></div>
-        <div class="pour-drop d2"></div>
-        <div class="pour-drop d3"></div>
-        <div class="pour-bottle">
-          <div class="pour-cap"></div>
-          <div class="pour-neck"></div>
-          <div class="pour-body"><div class="pour-fill"></div></div>
-        </div>
+
+    <div class="static-pour" aria-hidden="true">
+      <div>
+        <div class="section-label" style="justify-content:center">Poured, Not Mixed</div>
+        <h2 class="section-title" style="max-width:480px;margin:0 auto">One drop at a time. No shortcuts.</h2>
       </div>
     </div>
+
     <div class="pour-hint">Scroll to pour</div>
   </div>
 </section>
@@ -484,25 +472,164 @@ gsap.utils.toArray('.product-card').forEach((el,i)=>{
   });
 });
 
-// ---------- Scroll-scrubbed pour animation ----------
-gsap.timeline({
-  scrollTrigger:{
-    trigger:'.pour-section',
-    start:'top top',
-    end:'bottom bottom',
-    scrub:0.6
+// ---------- Scroll-scrubbed pour hero (real AI-generated video, replaces the old
+// CSS/SVG bottle-pour rig). Ported from the proven ember-oak-bottle-shop-demo
+// engineering pattern (blob-fetch, gated seeks, IntersectionObserver, rAF lerp,
+// static-hero fallback gate) rather than re-derived. Runs independently of GSAP/
+// ScrollTrigger above -- this section no longer uses either. ----------
+(function(){
+  "use strict";
+  var pourSection = document.getElementById('pour');
+  var pourStage = document.getElementById('pourStage');
+  var pourVideo = document.getElementById('pourVideo');
+  var pourPoster = document.getElementById('pourPoster');
+  var pourCaption = document.getElementById('pourCaption');
+  if (!pourSection || !pourStage || !pourVideo || !pourPoster || !pourCaption) return;
+
+  // Prefer WebM/VP9 when the browser reports real support; otherwise MP4/H.264.
+  // Two independently encoded files, not a transcode-on-the-fly -- this only
+  // picks which one to fetch. See feedback_scroll_scrub_gotchas memory, gotcha 4:
+  // the sandbox that built this cannot decode video at all to verify playback,
+  // so both encodes exist as a real robustness win, not just a workaround.
+  var canWebm = pourVideo.canPlayType('video/webm; codecs="vp9"');
+  var VIDEO_URL = (canWebm === 'probably' || canWebm === 'maybe')
+    ? 'assets/hero-scrub.webm'
+    : 'assets/hero-scrub.mp4';
+  var POSTER_URL = 'assets/hero-poster.jpg';
+  pourPoster.style.backgroundImage = "url('" + POSTER_URL + "')";
+
+  /* ---------- static-hero gate (4 conditions, must match the CSS media queries
+     on .static-pour exactly) ---------- */
+  var GATES = [
+    '(orientation: portrait) and (min-width: 600px) and (max-width: 1024px)',
+    '(orientation: portrait) and (pointer: coarse) and (min-width: 600px)',
+    '(orientation: landscape) and (pointer: coarse) and (max-height: 560px)',
+    '(prefers-reduced-motion: reduce)'
+  ];
+  var scrubOn = false, initedOnce = false, started = false;
+
+  function startBlobFetch(){
+    if (started) return;
+    started = true;
+    loadPourBlob().catch(failVideo);
   }
-})
-.to('.pour-caption', {opacity:1, duration:0.12}, 0)
-.to('.pour-stream', {scaleY:1, duration:0.32, ease:'none'}, 0.06)
-.to('.d1', {top:'50%', opacity:1, duration:0.001}, 0.1)
-.to('.d1', {top:'62%', opacity:0, duration:0.12}, 0.12)
-.to('.d2', {top:'50%', opacity:1, duration:0.001}, 0.2)
-.to('.d2', {top:'62%', opacity:0, duration:0.12}, 0.22)
-.to('.d3', {top:'50%', opacity:1, duration:0.001}, 0.3)
-.to('.d3', {top:'62%', opacity:0, duration:0.12}, 0.32)
-.to('.pour-fill', {height:'82%', duration:0.55, ease:'none'}, 0.15)
-.to('.pour-caption', {opacity:0, duration:0.12}, 0.8);
+  function loadPourBlob(){
+    return fetch(VIDEO_URL).then(function(res){
+      if (!res.ok) throw new Error('video fetch failed');
+      return res.blob();
+    }).then(function(blob){
+      pourVideo.src = URL.createObjectURL(blob);
+      pourVideo.load();
+      pourVideo.addEventListener('canplay', function(){
+        requestSeek(pourProgress() * (pourVideo.duration || 0));
+        pourStage.classList.add('video-ready');
+      }, { once:true });
+    });
+  }
+  function failVideo(){ pourStage.classList.add('video-failed'); }
+  pourVideo.addEventListener('error', failVideo);
+
+  function initPourOnce(){
+    if (initedOnce) return;
+    initedOnce = true;
+    var posterImg = new Image();
+    var kick = function(){ startBlobFetch(); };
+    posterImg.onload = kick; posterImg.onerror = kick;
+    posterImg.src = POSTER_URL;
+    setTimeout(kick, 3000);
+  }
+
+  /* ---------- scroll progress across the 250vh pour-section ---------- */
+  function pourProgress(){
+    var rect = pourSection.getBoundingClientRect();
+    var total = pourSection.offsetHeight - window.innerHeight;
+    if (total <= 0) return 0;
+    var p = -rect.top / total;
+    return Math.min(1, Math.max(0, p));
+  }
+
+  /* ---------- gated seeks -- never stack seeks faster than the video can settle ---------- */
+  var seekBusy = false, pendingTime = null;
+  function requestSeek(t){
+    if (!pourVideo.duration) return;
+    t = Math.min(pourVideo.duration, Math.max(0, t));
+    if (seekBusy){ pendingTime = t; return; }
+    seekBusy = true;
+    try { pourVideo.currentTime = t; } catch(e){ seekBusy = false; }
+  }
+  pourVideo.addEventListener('seeked', function(){
+    seekBusy = false;
+    if (pendingTime !== null){ var t = pendingTime; pendingTime = null; requestSeek(t); }
+  });
+
+  /* ---------- caption fade: in early, hold, out late -- same shape as the
+     original GSAP timeline (fade in ~0-0.12, hold, fade out ~0.8-0.92), just
+     driven by real scroll progress instead of a scrub tween ---------- */
+  var smoothstep = function(p,e0,e1){ var t = Math.min(1, Math.max(0, (p - e0) / (e1 - e0))); return t*t*(3-2*t); };
+  function updateCaption(p){
+    var opacity = smoothstep(p, 0, 0.10) * (1 - smoothstep(p, 0.85, 1));
+    pourCaption.style.opacity = opacity.toFixed(3);
+  }
+
+  /* ---------- lerp loop. Only runs while the section is actually on screen
+     (IntersectionObserver below), and goes idle once shown converges on target --
+     there's no load-in-only caption entrance here (unlike ember-oak's band0),
+     so no independent load-ramp driver is needed: this section sits below a
+     full 100vh hero and is never in view before the visitor has already
+     started scrolling, so onScroll always fires before the section is
+     observed on screen. ---------- */
+  var target = 0, shown = 0, rafId = null, lastTick = 0, onScreen = false;
+  function tick(now){
+    var dt = Math.min(100, now - (lastTick || now));
+    lastTick = now;
+    var k = 0.16;
+    shown += (target - shown) * (1 - Math.pow(1 - k, dt / 16.667));
+    if (Math.abs(target - shown) < 0.0005){
+      shown = target; rafId = null; lastTick = 0;
+    } else {
+      rafId = requestAnimationFrame(tick);
+    }
+    requestSeek(shown * (pourVideo.duration || 0));
+    updateCaption(shown);
+  }
+  function onScroll(){
+    target = pourProgress();
+    if (rafId === null && onScreen) rafId = requestAnimationFrame(tick);
+  }
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ onScreen = e.isIntersecting; if (onScreen && rafId === null) rafId = requestAnimationFrame(tick); });
+  }, { threshold: 0 });
+  io.observe(pourSection);
+
+  function pinToFinalState(){ pourStage.classList.add('video-failed'); }
+  function unpinFinalState(){ pourStage.classList.remove('video-failed'); }
+
+  function enableScrub(){
+    if (scrubOn) return; scrubOn = true;
+    initPourOnce();
+    addEventListener('scroll', onScroll, { passive:true });
+    unpinFinalState();
+    updateCaption(pourProgress());
+    onScroll();
+  }
+  function disableScrub(){
+    if (!scrubOn) return; scrubOn = false;
+    removeEventListener('scroll', onScroll);
+    if (rafId !== null){ cancelAnimationFrame(rafId); rafId = null; }
+  }
+  function applyPourMode(){
+    if (GATES.some(function(q){ return matchMedia(q).matches; })) disableScrub();
+    else enableScrub();
+  }
+  var MQLS = GATES.map(function(q){ return matchMedia(q); });
+  MQLS.forEach(function(m){ m.addEventListener('change', applyPourMode); });
+  applyPourMode();
+
+  matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', function(e){
+    if (e.matches) pinToFinalState(); else applyPourMode();
+  });
+})();
 
 // ---------- Scripted chatbot demo ----------
 const conversation = [
